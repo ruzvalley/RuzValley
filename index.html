@@ -101,11 +101,22 @@
         frame.contentWindow.postMessage({ type: "RUZ_FCM_DEVICE_TOKEN", token: fcmToken,
           deviceName: (navigator.userAgent.match(/Android|iPhone|iPad|Windows|Macintosh/i)||["POS device"])[0] }, "*");
       }
-      window.addEventListener("message", event => {
-        if ((event.origin === "https://script.google.com" || event.origin === "https://script.googleusercontent.com") && event.data && event.data.type === "RUZ_POS_READY") {
-          posReady = true; passTokenToPos();
-        }
-      });
+   window.addEventListener("message", event => {
+  const trustedOrigin =
+    event.origin === "https://script.google.com" ||
+    event.origin.endsWith(".script.googleusercontent.com") ||
+    event.origin === "https://script.googleusercontent.com";
+
+  if (
+    trustedOrigin &&
+    event.source === frame.contentWindow &&
+    event.data &&
+    event.data.type === "RUZ_POS_READY"
+  ) {
+    posReady = true;
+    passTokenToPos();
+  }
+});
       frame.addEventListener("load", () => { posReady = true; passTokenToPos(); });
       async function enableAlerts() {
         try {
