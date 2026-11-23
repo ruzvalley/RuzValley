@@ -94,30 +94,21 @@
       };
       const VAPID_KEY = "BJxgchIK3wqq51um-8x3cCOMQ0YL2rVTpVkNtQluiQVZV3FDTKrtNpOvfQqIyErdiyGZ8QQOMfnagO-sNdQa6jQ";
       let fcmToken = "";
-      let posReady = false;
       const notifyButton = document.getElementById("notifyBtn");
-      function passTokenToPos() {
-        if (!fcmToken || !posReady || !frame.contentWindow) return;
-        frame.contentWindow.postMessage({ type: "RUZ_FCM_DEVICE_TOKEN", token: fcmToken,
-          deviceName: (navigator.userAgent.match(/Android|iPhone|iPad|Windows|Macintosh/i)||["POS device"])[0] }, "*");
+      async function registerTokenWithBackend(token) {
+        const response = await fetch(url, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          body: JSON.stringify({
+            type: "REGISTER_FCM_TOKEN",
+            token: token,
+            deviceName: (navigator.userAgent.match(/Android|iPhone|iPad|Windows|Macintosh/i) || ["POS device"])[0]
+          })
+        });
+        // no-cors responses are opaque; Apps Script Executions and the sheet confirm receipt.
+        return response;
       }
-   window.addEventListener("message", event => {
-  const trustedOrigin =
-    event.origin === "https://script.google.com" ||
-    event.origin.endsWith(".script.googleusercontent.com") ||
-    event.origin === "https://script.googleusercontent.com";
-
-  if (
-    trustedOrigin &&
-    event.source === frame.contentWindow &&
-    event.data &&
-    event.data.type === "RUZ_POS_READY"
-  ) {
-    posReady = true;
-    passTokenToPos();
-  }
-});
-      frame.addEventListener("load", () => { posReady = true; passTokenToPos(); });
       async function enableAlerts() {
         try {
           if (!("serviceWorker" in navigator) || !("Notification" in window) || !window.firebase) {
@@ -132,10 +123,10 @@
           const messaging = firebase.messaging();
           fcmToken = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
           if (!fcmToken) throw new Error("Could not get a device token. Please try again.");
-          passTokenToPos();
-          notifyButton.textContent = "Alerts enabled";
+          await registerTokenWithBackend(fcmToken);
+          notifyButton.textContent = "Registration sent";
           notifyButton.disabled = false;
-          alert("Notifications enabled on this device. Keep this app installed and allow notifications.");
+          alert("Notification registration request sent. Please check the NotificationTokens sheet to confirm this device is registered.");
         } catch (e) {
           notifyButton.disabled = false; notifyButton.textContent = "Enable alerts";
           alert(e && e.message ? e.message : String(e));
